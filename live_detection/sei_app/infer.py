@@ -34,7 +34,7 @@ from sigmf_utils import (
     channelize_inmem, iq_window_to_bn2, slice_windows,
 )
 from compute_channel_params import compute_from_meta
-from features import extract_features, estimate_snr_db
+from features import extract_features, extract_features_batch, estimate_snr_db
 from sei_model import SEIModel
 from gates import (
     ACCEPT, REJECT, ABSTAIN,
@@ -85,8 +85,18 @@ def classify_baseband(iq, sample_rate, sei, min_snr_db=15.0, max_windows=16, dev
         return {"sei:verdict": "unknown", "sei:reason": "no windows"}
 
     iq_bn2 = np.concatenate([iq_window_to_bn2(w, sei.config.input_length) for w in windows], axis=0)
-    feats = np.stack([extract_features(w, sample_rate) for w in windows])
-    scored = sei.score(torch.from_numpy(iq_bn2), feats, device=device)
+
+    # Batch feature extraction on GPU (all windows in one vectorised pass)
+    feats = extract_features_batch(windows, sample_rate, device=device)
+
+    # Pinned-memory transfer: faster H2D on Orin NX unified memory
+    iq_tensor = torch.from_numpy(iq_bn2)
+    try:
+        iq_tensor = iq_tensor.pin_memory()
+    except RuntimeError:
+        pass  # pin_memory unavailable in some contexts; fall back silently
+
+    scored = sei.score(iq_tensor, feats, device=device)
 
     hybrid = scored["hybrid_score"]
     med = float(np.median(hybrid))

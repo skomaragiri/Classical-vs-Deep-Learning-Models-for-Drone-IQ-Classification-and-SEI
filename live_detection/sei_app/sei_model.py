@@ -116,10 +116,10 @@ class SEIModel:
 
     # ---- individual scoring paths ---- #
     @torch.no_grad()
-    def _ae_error(self, iq_bn2, device="cpu"):
-        self.autoencoder.eval()
-        self.autoencoder.to(device)
-        x = iq_bn2.to(device)
+    def _ae_error(self, iq_bn2, device=None):
+        # device arg kept for API compatibility; actual device set at load time.
+        dev = getattr(self, '_infer_device', 'cpu')
+        x = iq_bn2.to(dev, non_blocking=True)
         if x.dim() == 2:
             x = x.unsqueeze(0)
         recon = self.autoencoder(x)
@@ -186,4 +186,8 @@ class SEIModel:
         obj.ae_mean = meta["ae_mean"]; obj.ae_std = meta["ae_std"]
         obj.ocs_mean = meta["ocs_mean"]; obj.ocs_std = meta["ocs_std"]
         obj.threshold = meta["threshold"]
+        # Pin autoencoder to GPU once at load time; stays there permanently.
+        obj._infer_device = "cuda" if torch.cuda.is_available() else "cpu"
+        obj.autoencoder = obj.autoencoder.to(obj._infer_device)
+        obj.autoencoder.eval()
         return obj

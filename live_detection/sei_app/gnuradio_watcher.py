@@ -118,6 +118,11 @@ def get_args():
                    help="OmniSIG core:label that maps to the UL model (default n11_pro_UL)")
     p.add_argument('--label-dl', default="n11_pro_DL",
                    help="OmniSIG core:label that maps to the DL model (default n11_pro_DL)")
+    p.add_argument('--model-map', nargs='+', default=None,
+                   metavar='LABEL:MODEL_DIR',
+                   help="Multi-drone routing: one or more LABEL:MODEL_DIR pairs. "
+                        "e.g. nafyre_n11_pro:./sei_model_dl ruko_f11_mini:./sei_model_dl. "
+                        "A model dir is only loaded once even if multiple labels share it.")
 
     p.add_argument('--target-rate', type=float, default=10e6,
                    help="Output sample rate of the in-process channelizer (default 10e6, "
@@ -374,19 +379,41 @@ def main():
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
 
     # Resolve model selection
-    dual = bool(args.model_ul or args.model_dl)
+    using_map  = bool(args.model_map)
+    dual       = bool(args.model_ul or args.model_dl)
+
+    n_modes = sum([using_map, dual, bool(args.model)])
+    if n_modes == 0:
+        dslog.error("Need --model, --model-ul/--model-dl, or --model-map")
+        sys.exit(2)
+    if n_modes > 1:
+        dslog.error("--model, --model-ul/--model-dl, and --model-map are mutually exclusive")
+        sys.exit(2)
     if dual and not (args.model_ul and args.model_dl):
         dslog.error("Dual-model mode requires BOTH --model-ul and --model-dl")
         sys.exit(2)
-    if dual and args.model:
-        dslog.error("Cannot combine --model with --model-ul/--model-dl")
-        sys.exit(2)
-    if not dual and not args.model:
-        dslog.error("Need either --model  OR  (--model-ul + --model-dl)")
-        sys.exit(2)
 
     sei_set = {}
-    if dual:
+    if using_map:
+        # Multi-drone mode: any number of LABEL:MODEL_DIR pairs.
+        # Models are cached by directory path so a shared model (e.g. one SEI
+        # model covering all drone DL links) is only loaded once.
+        _model_cache = {}
+        for entry in args.model_map:
+            if ":" not in entry:
+                dslog.error(f"--model-map entry must be LABEL:MODEL_DIR, got: {entry!r}")
+                sys.exit(2)
+            label, model_dir = entry.split(":", 1)
+            if model_dir not in _model_cache:
+                dslog.info(f"Loading model from {model_dir}")
+                _model_cache[model_dir] = SEIModel.load(model_dir)
+                m = _model_cache[model_dir]
+                dslog.info(f"  threshold={m.threshold:.3f}  input_len={m.config.input_length}")
+            sei_set[label] = _model_cache[model_dir]
+            dslog.info(f"  Mapped label '{label}' -> {model_dir}")
+        dslog.info(f"Multi-drone routing active: {list(sei_set.keys())}")
+
+    elif dual:
         dslog.info(f"Loading UL model from {args.model_ul}  (label='{args.label_ul}')")
         sei_ul = SEIModel.load(args.model_ul)
         dslog.info(f"  UL threshold={sei_ul.threshold:.3f}  input_len={sei_ul.config.input_length}")
@@ -394,6 +421,7 @@ def main():
         sei_dl = SEIModel.load(args.model_dl)
         dslog.info(f"  DL threshold={sei_dl.threshold:.3f}  input_len={sei_dl.config.input_length}")
         sei_set = {args.label_ul: sei_ul, args.label_dl: sei_dl}
+
     else:
         dslog.info(f"Loading SEI model from {args.model}")
         sei = SEIModel.load(args.model)

@@ -1,30 +1,52 @@
 {
-  "_comment": "Per-emitter profile. All fields optional; missing fields cause the corresponding gate to abstain. Use `null` to explicitly disable a gate.",
+  "_comment": "Per-emitter profile keyed on OmniSIG real-time class labels (core:label). All fields optional; missing fields cause the corresponding gate to abstain. Use null to explicitly disable a gate.",
   "_fields": {
-    "expected_cf": "Center frequency the emitter should sit on (Hz). freq_band_gate rejects anything off by more than cf_tol_hz.",
-    "expected_bw": "Signal bandwidth (Hz). freq_band_gate rejects anything off by more than bw_tol_hz.",
-    "cf_tol_hz": "Default 2e6.",
-    "bw_tol_hz": "Default 5e6.",
+    "expected_cf":    "Center frequency the emitter should sit on (Hz). freq_band_gate rejects anything off by more than cf_tol_hz.",
+    "expected_bw":    "Signal bandwidth (Hz). freq_band_gate rejects anything off by more than bw_tol_hz.",
+    "cf_tol_hz":      "Tolerance around expected_cf. Default 2e6.",
+    "bw_tol_hz":      "Tolerance around expected_bw. Default 5e6.",
     "min_duration_s": "Shortest acceptable burst duration (s). duration_gate rejects shorter.",
     "max_duration_s": "Longest acceptable burst duration (s). duration_gate rejects longer.",
-    "min_snr_db": "Per-emitter SNR floor. Overrides --min-snr-db on the CLI.",
+    "min_snr_db":     "Per-emitter SNR floor. Overrides --min-snr-db on the CLI.",
     "min_power_dbfs": "Raw-IQ power floor (dBFS). power_gate rejects quieter bursts."
   },
 
-  "n11_pro_DL": {
-    "expected_cf": 5179000000,
-    "expected_bw": 17000000,
-    "cf_tol_hz": 5000000,
-    "bw_tol_hz": 8000000,
+  "nafyre_n11_pro": {
+    "_note": "Nafyre N11 Pro. Uses a proprietary 5.8 GHz C2 link (DL) and a 2.4 GHz ISM uplink (UL). CF/BW below reflect the DL channel; UL sits in the 2.4 GHz band so cf gate is disabled (null) to avoid false rejects when the capture is UL-dominant.",
+    "expected_cf":    5179000000,
+    "expected_bw":    17000000,
+    "cf_tol_hz":      5000000,
+    "bw_tol_hz":      8000000,
     "min_duration_s": 1e-5,
     "max_duration_s": 5e-2
   },
 
-  "n11_pro_UL": {
-    "expected_cf": null,
-    "expected_bw": null,
-    "cf_tol_hz": 5000000,
-    "bw_tol_hz": 8000000,
+  "ruko_f11_mini": {
+    "_note": "Ruko F11 Mini. 2.4 GHz ISM C2 link. CF gate disabled because the exact channel hops; BW gate catches gross imposters.",
+    "expected_cf":    null,
+    "expected_bw":    10000000,
+    "cf_tol_hz":      5000000,
+    "bw_tol_hz":      8000000,
+    "min_duration_s": 1e-5,
+    "max_duration_s": 5e-2
+  },
+
+  "dji_mini_4k": {
+    "_note": "DJI Mini 4K. OcuSync 2.0 operates on 2.4 GHz and 5.8 GHz. Both DL and UL are captured under this class label in real-time inference. CF gate disabled to accommodate both bands; BW gate retains ~20 MHz OcuSync channel check.",
+    "expected_cf":    null,
+    "expected_bw":    20000000,
+    "cf_tol_hz":      5000000,
+    "bw_tol_hz":      10000000,
+    "min_duration_s": 1e-5,
+    "max_duration_s": 1e-1
+  },
+
+  "holystone_360s": {
+    "_note": "Holystone 360s. 2.4 GHz ISM only; DL-only captures in the dataset (hs_360s_DL). CF gate disabled; BW gate checks for plausible ISM channel width.",
+    "expected_cf":    null,
+    "expected_bw":    10000000,
+    "cf_tol_hz":      5000000,
+    "bw_tol_hz":      8000000,
     "min_duration_s": 1e-5,
     "max_duration_s": 5e-2
   }

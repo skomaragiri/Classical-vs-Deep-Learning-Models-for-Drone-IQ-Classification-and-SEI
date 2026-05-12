@@ -57,7 +57,10 @@ def omnisig_generator(dslog, args):
     dslog.debug(f"Precision: {precision}")
 
     try:
+        from pyomnisig import Manager
+        manager = Manager()
         generator = WidebandClassifier(
+            manager,
             sample_rate=args.sample_rate,
             thread_profiles=1,
             batch_size=1,
@@ -67,9 +70,6 @@ def omnisig_generator(dslog, args):
             devices=args.devices,
             runtime=args.runtime,
             trt=args.enable_trt,
-            license_mode="normal",
-            license_path=args.license_path,
-            activation_cache_path=""
         )
         return generator
     except Exception as e:

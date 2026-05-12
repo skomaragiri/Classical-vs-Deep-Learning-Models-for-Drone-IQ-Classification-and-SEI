@@ -220,7 +220,7 @@ def train_autoencoder(model, train_iq, epochs, batch_size, lr, device):
             batch = batch.to(device)
             loss = F.mse_loss(model(batch), batch)
             opt.zero_grad(); loss.backward(); opt.step()
-            total += float(loss) * batch.size(0); n += batch.size(0)
+            total += float(loss.detach()) * batch.size(0); n += batch.size(0)
         sched.step()
         dsprint("INFO", f"  epoch {e+1:3d}/{epochs}  loss={total/max(n,1):.6f}")
 
@@ -250,6 +250,7 @@ def main():
     cfg = SEIConfig(input_length=args.window_len, ocsvm_nu=args.ocsvm_nu,
                     false_reject_target=args.false_reject_target)
     sei = SEIModel(cfg)
+    sei._infer_device = device  # ensure _ae_error uses the correct device during calibration
 
     dsprint("INFO", "Training autoencoder...")
     train_autoencoder(sei.autoencoder, X_iq[train_idx], args.epochs, args.batch_size, args.lr, device)
