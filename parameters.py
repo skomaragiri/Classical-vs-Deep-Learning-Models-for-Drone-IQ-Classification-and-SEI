@@ -1,5 +1,5 @@
 # DERIVATION PARAMETERS
-NUM_FEATURES = 6
+NUM_FEATURES = 7
 WINDOW_LEN = 1024 # measured in IQ samples
 FFT_OVERLAP = 0.1 # measured as a fraction of the WINDOW_LEN
 
